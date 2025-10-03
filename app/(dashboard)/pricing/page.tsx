@@ -1,25 +1,71 @@
+'use client';
+
 import { checkoutAction } from '@/lib/payments/actions';
 import { Check } from 'lucide-react';
-import { getStripePrices, getStripeProducts } from '@/lib/payments/stripe';
 import { SubmitButton } from './submit-button';
+import { useState, useEffect } from 'react';
 
-// Prices are fresh for one hour max
-export const revalidate = 3600;
+export default function PricingPage() {
+  const [interval, setInterval] = useState<'month' | 'year'>('month');
+  const [prices, setPrices] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default async function PricingPage() {
-  const [prices, products] = await Promise.all([
-    getStripePrices(),
-    getStripeProducts(),
-  ]);
+  useEffect(() => {
+    async function fetchData() {
+      const response = await fetch('/api/stripe/prices');
+      const data = await response.json();
+      setPrices(data.prices);
+      setProducts(data.products);
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center">Loading...</div>
+      </main>
+    );
+  }
 
   const basePlan = products.find((product) => product.name === 'Base');
   const plusPlan = products.find((product) => product.name === 'Plus');
 
-  const basePrice = prices.find((price) => price.productId === basePlan?.id);
-  const plusPrice = prices.find((price) => price.productId === plusPlan?.id);
+  const basePrice = prices.find(
+    (price) => price.productId === basePlan?.id && price.interval === interval
+  );
+  const plusPrice = prices.find(
+    (price) => price.productId === plusPlan?.id && price.interval === interval
+  );
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="flex justify-center mb-8">
+        <div className="inline-flex rounded-lg border border-gray-200 p-1">
+          <button
+            onClick={() => setInterval('month')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              interval === 'month'
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'text-gray-700 hover:text-gray-900'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setInterval('year')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              interval === 'year'
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'text-gray-700 hover:text-gray-900'
+            }`}
+          >
+            Yearly
+          </button>
+        </div>
+      </div>
       <div className="grid md:grid-cols-2 gap-8 max-w-xl mx-auto">
         <PricingCard
           name={basePlan?.name || 'Base'}

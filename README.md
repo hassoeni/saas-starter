@@ -38,7 +38,7 @@ pnpm install
 
 ```bash
 stripe login
-```
+````
 
 Use the included setup script to create your `.env` file:
 
