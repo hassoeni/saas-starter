@@ -13,10 +13,12 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function createCheckoutSession({
   team,
-  priceId
+  priceId,
+  quantity = 1
 }: {
   team: Team | null;
   priceId: string;
+  quantity?: number;
 }) {
   const user = await getUser();
 
@@ -24,14 +26,22 @@ export async function createCheckoutSession({
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
+  // Check if the price is metered
+  const price = await stripe.prices.retrieve(priceId);
+  const isMetered = price.recurring?.usage_type === 'metered';
+
+  const lineItem: any = {
+    price: priceId,
+  };
+
+  // Only add quantity for non-metered prices
+  if (!isMetered) {
+    lineItem.quantity = quantity;
+  }
+
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: priceId,
-        quantity: 1
-      }
-    ],
+    automatic_payment_methods: { enabled: true },
+    line_items: [lineItem],
     mode: 'subscription',
     success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}/pricing`,

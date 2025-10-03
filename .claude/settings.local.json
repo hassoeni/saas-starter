@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm dev:*)"
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm drizzle-kit:*)",
+      "Bash(pnpm db:migrate:*)",
+      "Bash(pnpm db:migrate:dev:*)",
+      "Bash(cat:*)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []

@@ -6,7 +6,9 @@ import { withTeam } from '@/lib/auth/middleware';
 
 export const checkoutAction = withTeam(async (formData, team) => {
   const priceId = formData.get('priceId') as string;
-  await createCheckoutSession({ team: team, priceId });
+  const quantity = formData.get('quantity');
+  const quantityNumber = quantity ? parseInt(quantity as string) : 1;
+  await createCheckoutSession({ team: team, priceId, quantity: quantityNumber });
 });
 
 export const customerPortalAction = withTeam(async (_, team) => {

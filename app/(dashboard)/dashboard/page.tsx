@@ -39,9 +39,12 @@ function SubscriptionSkeleton() {
 
 function ManageSubscription() {
   const { data: teamData } = useSWR<TeamDataWithMembers>('/api/team', fetcher);
+  const { data: subscriptionData } = useSWR<any>('/api/subscription', fetcher);
   const [showComparison, setShowComparison] = useState(false);
   const isBasePlan = teamData?.planName === 'Base';
   const hasNoSubscription = !teamData?.planName || teamData?.subscriptionStatus === 'canceled';
+  const isEnterprisePlan = teamData?.planName === 'Enterprise';
+  const seats = subscriptionData?.subscription?.quantity || 1;
 
   return (
     <>
@@ -55,6 +58,11 @@ function ManageSubscription() {
               <div className="mb-4 sm:mb-0">
                 <p className="font-medium">
                   Current Plan: {teamData?.planName || 'Free'}
+                  {isEnterprisePlan && seats > 1 && (
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      ({seats} seats)
+                    </span>
+                  )}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {teamData?.subscriptionStatus === 'active'
@@ -363,12 +371,72 @@ function InviteTeamMember() {
   );
 }
 
+function TokenUsageCard() {
+  const { data: usageData } = useSWR<any>('/api/tokens/usage', fetcher);
+  const { data: teamData } = useSWR<TeamDataWithMembers>('/api/team', fetcher);
+
+  const isTokenPlan = teamData?.planName === 'Token Plan';
+
+  if (!isTokenPlan) {
+    return null;
+  }
+
+  const monthlyTotal = usageData?.monthlyTotal || 0;
+  const includedTokens = 100;
+  const remainingTokens = Math.max(0, includedTokens - monthlyTotal);
+  const percentUsed = Math.min(100, (monthlyTotal / includedTokens) * 100);
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle>Token Usage</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-sm text-muted-foreground">This Month</span>
+              <span className="text-sm font-medium">
+                {monthlyTotal} / {includedTokens} tokens
+              </span>
+            </div>
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all ${
+                  percentUsed > 90
+                    ? 'bg-red-500'
+                    : percentUsed > 75
+                    ? 'bg-yellow-500'
+                    : 'bg-blue-500'
+                }`}
+                style={{ width: `${percentUsed}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <div>
+              <p className="text-2xl font-bold">{remainingTokens}</p>
+              <p className="text-sm text-muted-foreground">Tokens Remaining</p>
+            </div>
+            <Button variant="outline" asChild>
+              <a href="/tokens">View Details</a>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <section className="flex-1 p-4 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium mb-6">Team Settings</h1>
       <Suspense fallback={<SubscriptionSkeleton />}>
         <ManageSubscription />
+      </Suspense>
+      <Suspense fallback={<div className="h-32" />}>
+        <TokenUsageCard />
       </Suspense>
       <Suspense fallback={<TeamMembersSkeleton />}>
         <TeamMembers />
