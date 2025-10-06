@@ -1,22 +1,26 @@
 'use client';
 
 import { checkoutAction } from '@/lib/payments/actions';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { SubmitButton } from './submit-button';
 import { useState, useEffect } from 'react';
+import { PLANS } from '@/lib/payments/plans';
 
 export default function PricingPage() {
-  const [interval, setInterval] = useState<'month' | 'year'>('month');
   const [prices, setPrices] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
-      const response = await fetch('/api/stripe/prices');
-      const data = await response.json();
-      setPrices(data.prices);
-      setProducts(data.products);
+      try {
+        const response = await fetch('/api/stripe/prices');
+        const data = await response.json();
+        setPrices(data.prices || []);
+        setProducts(data.products || []);
+      } catch (error) {
+        console.error('Failed to fetch Stripe data:', error);
+      }
       setLoading(false);
     }
     fetchData();
@@ -25,117 +29,88 @@ export default function PricingPage() {
   if (loading) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center">Loading...</div>
+        <div className="text-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+          <p className="mt-4 text-gray-600">Loading pricing...</p>
+        </div>
       </main>
     );
   }
 
-  const basePlan = products.find((product) => product.name === 'Base');
-  const plusPlan = products.find((product) => product.name === 'Plus');
-  const enterprisePlan = products.find((product) => product.name === 'Enterprise');
-  const tokenPlan = products.find((product) => product.name === 'Transformertokens');
+  // Match Stripe products to our plan config by name
+  const getProductPrice = (productName: string) => {
+    const product = products.find(p => p.name === productName);
+    if (!product) return null;
+    const price = prices.find(p => p.productId === product.id);
+    return { product, price };
+  };
 
-  const basePrice = prices.find(
-    (price) => price.productId === basePlan?.id && price.interval === interval
-  );
-  const plusPrice = prices.find(
-    (price) => price.productId === plusPlan?.id && price.interval === interval
-  );
-  const enterprisePrice = prices.find(
-    (price) => price.productId === enterprisePlan?.id && price.interval === interval
-  );
-  const tokenPrice = prices.find(
-    (price) => price.productId === tokenPlan?.id && price.interval === 'month'
-  );
+  // Match your existing Stripe products
+  const payAsYouGo = getProductPrice('Transformertokens');
+  const proUnlimited = getProductPrice('Plus');
+  const team = getProductPrice('Team'); // You'll need to create this
+  const enterprise = getProductPrice('Enterprise');
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex justify-center mb-8">
-        <div className="inline-flex rounded-lg border border-gray-200 p-1">
-          <button
-            onClick={() => setInterval('month')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              interval === 'month'
-                ? 'bg-gray-900 text-white shadow-sm'
-                : 'text-gray-700 hover:text-gray-900'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setInterval('year')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              interval === 'year'
-                ? 'bg-gray-900 text-white shadow-sm'
-                : 'text-gray-700 hover:text-gray-900'
-            }`}
-          >
-            Yearly
-          </button>
-        </div>
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h1>
+        <p className="text-lg text-gray-600">Choose the plan that fits your needs</p>
       </div>
 
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold text-center mb-2">Subscription Plans</h2>
-        <p className="text-center text-gray-600 mb-8">Choose the plan that fits your needs</p>
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <div className="mb-16">
+        <h2 className="text-2xl font-bold text-center mb-2">Individual Plans</h2>
+        <p className="text-center text-gray-600 mb-8">For personal use</p>
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           <PricingCard
-            name={basePlan?.name || 'Base'}
-            price={basePrice?.unitAmount || 800}
-            interval={basePrice?.interval || 'month'}
-            trialDays={basePrice?.trialPeriodDays || 7}
-            features={[
-              'Unlimited Usage',
-              'Unlimited Workspace Members',
-              'Email Support',
-            ]}
-            priceId={basePrice?.id}
+            planType="pay_as_you_go"
+            name={PLANS.pay_as_you_go.name}
+            price={PLANS.pay_as_you_go.price}
+            priceUnit="per token"
+            description={PLANS.pay_as_you_go.description}
+            features={PLANS.pay_as_you_go.features}
+            priceId={payAsYouGo?.price?.id || ''}
+            highlight={false}
+            disabled={!payAsYouGo}
           />
           <PricingCard
-            name={plusPlan?.name || 'Plus'}
-            price={plusPrice?.unitAmount || 1200}
-            interval={plusPrice?.interval || 'month'}
-            trialDays={plusPrice?.trialPeriodDays || 7}
-            features={[
-              'Everything in Base, and:',
-              'Early Access to New Features',
-              '24/7 Support + Slack Access',
-            ]}
-            priceId={plusPrice?.id}
-          />
-          <PerSeatPricingCard
-            name={enterprisePlan?.name || 'Enterprise'}
-            pricePerSeat={enterprisePrice?.unitAmount || 1000}
-            interval={enterprisePrice?.interval || 'month'}
-            trialDays={enterprisePrice?.trialPeriodDays || 7}
-            features={[
-              'Everything in Plus, and:',
-              'Dedicated Account Manager',
-              'Custom Integrations',
-              'SLA Guarantee',
-            ]}
-            priceId={enterprisePrice?.id}
+            planType="pro_unlimited"
+            name={PLANS.pro_unlimited.name}
+            price={PLANS.pro_unlimited.price}
+            priceUnit="per month"
+            description={PLANS.pro_unlimited.description}
+            features={PLANS.pro_unlimited.features}
+            priceId={proUnlimited?.price?.id || ''}
+            highlight={true}
+            disabled={!proUnlimited}
           />
         </div>
       </div>
 
       <div className="border-t pt-12">
-        <h2 className="text-2xl font-bold text-center mb-2">Usage-Based Plan</h2>
-        <p className="text-center text-gray-600 mb-8">Pay only for what you use</p>
-        <div className="max-w-md mx-auto">
-          <TokenPricingCard
-            name="Token Plan"
-            basePrice={tokenPrice?.unitAmount || 5000}
-            includedTokens={100}
-            interval="month"
-            trialDays={tokenPrice?.trialPeriodDays || 7}
-            features={[
-              '100 tokens included per month',
-              'Usage-based billing',
-              'Real-time usage tracking',
-              'Monthly billing cycle',
-            ]}
-            priceId={tokenPrice?.id}
+        <h2 className="text-2xl font-bold text-center mb-2">Team Plans</h2>
+        <p className="text-center text-gray-600 mb-8">For teams and organizations</p>
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <TeamPricingCard
+            planType="team"
+            name={PLANS.team.name}
+            pricePerSeat={PLANS.team.price}
+            description={PLANS.team.description}
+            features={PLANS.team.features}
+            priceId={team?.price?.id || ''}
+            disabled={!team}
+          />
+          <PricingCard
+            planType="enterprise"
+            name={PLANS.enterprise.name}
+            price={0}
+            priceUnit="Custom pricing"
+            description={PLANS.enterprise.description}
+            features={PLANS.enterprise.features}
+            priceId={enterprise?.price?.id || ''}
+            highlight={false}
+            customPrice={true}
+            disabled={false}
           />
         </div>
       </div>
@@ -144,81 +119,115 @@ export default function PricingPage() {
 }
 
 function PricingCard({
+  planType,
   name,
   price,
-  interval,
-  trialDays,
+  priceUnit,
+  description,
   features,
   priceId,
+  highlight = false,
+  customPrice = false,
+  disabled = false,
 }: {
+  planType: string;
   name: string;
   price: number;
-  interval: string;
-  trialDays: number;
+  priceUnit: string;
+  description: string;
   features: string[];
-  priceId?: string;
+  priceId: string;
+  highlight?: boolean;
+  customPrice?: boolean;
+  disabled?: boolean;
 }) {
   return (
-    <div className="pt-6">
-      <h2 className="text-2xl font-medium text-gray-900 mb-2">{name}</h2>
-      <p className="text-sm text-gray-600 mb-4">
-        with {trialDays} day free trial
-      </p>
-      <p className="text-4xl font-medium text-gray-900 mb-6">
-        ${price / 100}{' '}
-        <span className="text-xl font-normal text-gray-600">
-          per user / {interval}
-        </span>
-      </p>
-      <ul className="space-y-4 mb-8">
+    <div className={`pt-6 rounded-lg p-6 relative ${
+      highlight ? 'border-2 border-orange-500 shadow-lg' : 'border border-gray-200'
+    }`}>
+      {highlight && (
+        <div className="absolute -top-3 right-4 bg-orange-500 text-white text-xs px-3 py-1 rounded-full">
+          Popular
+        </div>
+      )}
+      <h3 className="text-2xl font-bold text-gray-900 mb-2">{name}</h3>
+      <p className="text-sm text-gray-600 mb-4">{description}</p>
+      {!customPrice ? (
+        <p className="text-4xl font-bold text-gray-900 mb-6">
+          ${price}{' '}
+          <span className="text-xl font-normal text-gray-600">{priceUnit}</span>
+        </p>
+      ) : (
+        <p className="text-2xl font-bold text-gray-900 mb-6">Contact Sales</p>
+      )}
+      <ul className="space-y-3 mb-8">
         {features.map((feature, index) => (
           <li key={index} className="flex items-start">
             <Check className="h-5 w-5 text-orange-500 mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-gray-700">{feature}</span>
+            <span className="text-gray-700 text-sm">{feature}</span>
           </li>
         ))}
       </ul>
-      <form action={checkoutAction}>
-        <input type="hidden" name="priceId" value={priceId} />
-        <SubmitButton />
-      </form>
+      {!customPrice ? (
+        disabled ? (
+          <button
+            disabled
+            className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed"
+          >
+            Not Available - Create Stripe Product
+          </button>
+        ) : (
+          <form action={checkoutAction}>
+            <input type="hidden" name="planType" value={planType} />
+            <input type="hidden" name="priceId" value={priceId} />
+            <SubmitButton />
+          </form>
+        )
+      ) : (
+        <button
+          className="w-full px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors"
+          onClick={() => window.location.href = 'mailto:sales@example.com'}
+        >
+          Contact Sales
+        </button>
+      )}
     </div>
   );
 }
 
-function PerSeatPricingCard({
+function TeamPricingCard({
+  planType,
   name,
   pricePerSeat,
-  interval,
-  trialDays,
+  description,
   features,
   priceId,
+  disabled = false,
 }: {
+  planType: string;
   name: string;
   pricePerSeat: number;
-  interval: string;
-  trialDays: number;
+  description: string;
   features: string[];
-  priceId?: string;
+  priceId: string;
+  disabled?: boolean;
 }) {
   const [seats, setSeats] = useState(5);
 
   return (
-    <div className="pt-6 border-2 border-orange-500 rounded-lg p-6 relative">
+    <div className="pt-6 border-2 border-orange-500 rounded-lg p-6 relative shadow-lg">
       <div className="absolute -top-3 right-4 bg-orange-500 text-white text-xs px-3 py-1 rounded-full">
-        Popular
+        Best for Teams
       </div>
-      <h2 className="text-2xl font-medium text-gray-900 mb-2">{name}</h2>
-      <p className="text-sm text-gray-600 mb-4">
-        with {trialDays} day free trial
-      </p>
+      <h3 className="text-2xl font-bold text-gray-900 mb-2">{name}</h3>
+      <p className="text-sm text-gray-600 mb-4">{description}</p>
       <div className="mb-6">
-        <p className="text-4xl font-medium text-gray-900">
-          ${(pricePerSeat / 100) * seats}{' '}
-          <span className="text-xl font-normal text-gray-600">/ {interval}</span>
+        <p className="text-4xl font-bold text-gray-900">
+          ${pricePerSeat * seats}{' '}
+          <span className="text-xl font-normal text-gray-600">/ month</span>
         </p>
         <p className="text-sm text-gray-600 mt-1">
-          ${pricePerSeat / 100} per seat × {seats} seats
+          ${pricePerSeat} per seat × {seats} seats
         </p>
       </div>
       <div className="mb-6">
@@ -228,77 +237,37 @@ function PerSeatPricingCard({
         <input
           type="number"
           id="seats"
-          min="1"
-          max="1000"
+          min="2"
+          max="50"
           value={seats}
-          onChange={(e) => setSeats(Math.max(1, parseInt(e.target.value) || 1))}
+          onChange={(e) => setSeats(Math.max(2, Math.min(50, parseInt(e.target.value) || 2)))}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
+        <p className="text-xs text-gray-500 mt-1">Minimum 2 seats, maximum 50 seats</p>
       </div>
-      <ul className="space-y-4 mb-8">
+      <ul className="space-y-3 mb-8">
         {features.map((feature, index) => (
           <li key={index} className="flex items-start">
             <Check className="h-5 w-5 text-orange-500 mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-gray-700">{feature}</span>
+            <span className="text-gray-700 text-sm">{feature}</span>
           </li>
         ))}
       </ul>
-      <form action={checkoutAction}>
-        <input type="hidden" name="priceId" value={priceId} />
-        <input type="hidden" name="quantity" value={seats} />
-        <SubmitButton />
-      </form>
-    </div>
-  );
-}
-
-function TokenPricingCard({
-  name,
-  basePrice,
-  includedTokens,
-  interval,
-  trialDays,
-  features,
-  priceId,
-}: {
-  name: string;
-  basePrice: number;
-  includedTokens: number;
-  interval: string;
-  trialDays: number;
-  features: string[];
-  priceId?: string;
-}) {
-  return (
-    <div className="pt-6 border-2 border-blue-500 rounded-lg p-6 relative bg-blue-50">
-      <div className="absolute -top-3 right-4 bg-blue-500 text-white text-xs px-3 py-1 rounded-full">
-        Usage-Based
-      </div>
-      <h2 className="text-2xl font-medium text-gray-900 mb-2">{name}</h2>
-      <p className="text-sm text-gray-600 mb-4">
-        with {trialDays} day free trial
-      </p>
-      <div className="mb-6">
-        <p className="text-4xl font-medium text-gray-900">
-          ${basePrice / 100}{' '}
-          <span className="text-xl font-normal text-gray-600">/ {interval}</span>
-        </p>
-        <p className="text-sm text-gray-600 mt-1">
-          Includes {includedTokens} tokens
-        </p>
-      </div>
-      <ul className="space-y-4 mb-8">
-        {features.map((feature, index) => (
-          <li key={index} className="flex items-start">
-            <Check className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-            <span className="text-gray-700">{feature}</span>
-          </li>
-        ))}
-      </ul>
-      <form action={checkoutAction}>
-        <input type="hidden" name="priceId" value={priceId} />
-        <SubmitButton />
-      </form>
+      {disabled ? (
+        <button
+          disabled
+          className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed"
+        >
+          Not Available - Create Stripe Product
+        </button>
+      ) : (
+        <form action={checkoutAction}>
+          <input type="hidden" name="planType" value={planType} />
+          <input type="hidden" name="priceId" value={priceId} />
+          <input type="hidden" name="quantity" value={seats} />
+          <SubmitButton />
+        </form>
+      )}
     </div>
   );
 }

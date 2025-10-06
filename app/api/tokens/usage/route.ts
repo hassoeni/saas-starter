@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getTeamForUser } from '@/lib/db/queries';
+import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { tokenUsage } from '@/lib/db/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, sql, and, gte } from 'drizzle-orm';
+import { getTokenLimit } from '@/lib/payments/product-features';
 
 export async function GET() {
   try {
-    const team = await getTeamForUser();
+    const user = await getUser();
 
-    if (!team) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get total tokens used this month
+    const team = await getTeamForUser();
+
+    // Get total tokens used this month for this user
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstDayOfMonthISO = firstDayOfMonth.toISOString();
@@ -22,14 +25,18 @@ export async function GET() {
         total: sql<number>`COALESCE(SUM(${tokenUsage.tokens}), 0)`,
       })
       .from(tokenUsage)
-      .where(eq(tokenUsage.teamId, team.id))
-      .where(sql`${tokenUsage.createdAt} >= ${firstDayOfMonthISO}::timestamp`);
+      .where(
+        and(
+          eq(tokenUsage.userId, user.id),
+          gte(tokenUsage.createdAt, firstDayOfMonth)
+        )
+      );
 
-    // Get recent usage history
+    // Get recent usage history for this user
     const recentUsage = await db
       .select()
       .from(tokenUsage)
-      .where(eq(tokenUsage.teamId, team.id))
+      .where(eq(tokenUsage.userId, user.id))
       .orderBy(desc(tokenUsage.createdAt))
       .limit(20);
 
@@ -57,8 +64,14 @@ export async function GET() {
       return result;
     });
 
+    // Determine plan type (user plan takes priority over team plan)
+    const planType = user.planType || team?.planType;
+    const tokenLimit = getTokenLimit(planType);
+
     const response = {
       monthlyTotal: Number(monthlyUsage[0]?.total || 0),
+      tokenLimit,
+      planType,
       recentUsage: serializedUsage,
     };
 

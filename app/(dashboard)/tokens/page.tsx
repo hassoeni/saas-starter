@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UsageAlertBanner } from '@/components/usage-alert-banner';
 import useSWR, { mutate } from 'swr';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -56,13 +57,32 @@ export default function TokensPage() {
   }
 
   const monthlyTotal = usageData?.monthlyTotal || 0;
-  const includedTokens = 100; // This should match your Stripe plan
-  const remainingTokens = Math.max(0, includedTokens - monthlyTotal);
-  const percentUsed = Math.min(100, (monthlyTotal / includedTokens) * 100);
+  const tokenLimit = usageData?.tokenLimit || 0;
+  const planType = usageData?.planType;
+
+  // Handle unlimited plans (-1) and metered plans (0)
+  const isUnlimited = tokenLimit === -1;
+  const isMetered = tokenLimit === 0;
+  const hasLimit = tokenLimit > 0;
+
+  const remainingTokens = hasLimit ? Math.max(0, tokenLimit - monthlyTotal) : 0;
+  const percentUsed = hasLimit ? Math.min(100, (monthlyTotal / tokenLimit) * 100) : 0;
 
   return (
     <section className="flex-1 p-4 lg:p-8">
-      <h1 className="text-lg lg:text-2xl font-medium mb-6">Token Usage</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-lg lg:text-2xl font-medium">Token Usage</h1>
+        {planType && (
+          <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            {planType === 'pay_as_you_go' && 'Pay as You Go'}
+            {planType === 'pro_unlimited' && 'Pro Unlimited'}
+            {planType === 'team' && 'Team'}
+            {planType === 'enterprise' && 'Enterprise'}
+          </div>
+        )}
+      </div>
+
+      <UsageAlertBanner />
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
         <Card>
@@ -71,30 +91,46 @@ export default function TokensPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Tokens Used</span>
-                  <span className="text-sm font-medium">
-                    {monthlyTotal} / {includedTokens}
-                  </span>
+              {isUnlimited ? (
+                <div className="pt-4">
+                  <p className="text-3xl font-bold">∞</p>
+                  <p className="text-sm text-muted-foreground">Unlimited Tokens</p>
+                  <p className="text-xs text-gray-500 mt-2">You have used {monthlyTotal} tokens this month</p>
                 </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all ${
-                      percentUsed > 90
-                        ? 'bg-red-500'
-                        : percentUsed > 75
-                        ? 'bg-yellow-500'
-                        : 'bg-blue-500'
-                    }`}
-                    style={{ width: `${percentUsed}%` }}
-                  />
+              ) : isMetered ? (
+                <div className="pt-4">
+                  <p className="text-3xl font-bold">{monthlyTotal}</p>
+                  <p className="text-sm text-muted-foreground">Tokens Used (Pay-as-you-go)</p>
+                  <p className="text-xs text-gray-500 mt-2">Charged at $0.50 per token</p>
                 </div>
-              </div>
-              <div className="pt-4">
-                <p className="text-3xl font-bold">{remainingTokens}</p>
-                <p className="text-sm text-muted-foreground">Tokens Remaining</p>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Tokens Used</span>
+                      <span className="text-sm font-medium">
+                        {monthlyTotal} / {tokenLimit}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${
+                          percentUsed > 90
+                            ? 'bg-red-500'
+                            : percentUsed > 75
+                            ? 'bg-yellow-500'
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${percentUsed}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="pt-4">
+                    <p className="text-3xl font-bold">{remainingTokens}</p>
+                    <p className="text-sm text-muted-foreground">Tokens Remaining</p>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -111,7 +147,7 @@ export default function TokensPage() {
               </p>
               <Button
                 onClick={consumeToken}
-                disabled={consuming || remainingTokens === 0}
+                disabled={consuming || (!isUnlimited && !isMetered && remainingTokens === 0)}
                 className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
               >
                 {consuming ? (
@@ -119,7 +155,7 @@ export default function TokensPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Consuming...
                   </>
-                ) : remainingTokens === 0 ? (
+                ) : (!isUnlimited && !isMetered && remainingTokens === 0) ? (
                   'No Tokens Remaining'
                 ) : (
                   'Use 1 Token'

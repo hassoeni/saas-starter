@@ -6,7 +6,9 @@
       "Bash(pnpm db:migrate:*)",
       "Bash(pnpm db:migrate:dev:*)",
       "Bash(cat:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.stripe.com)"
     ],
     "deny": [],
     "ask": []

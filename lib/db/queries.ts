@@ -46,12 +46,23 @@ export async function getTeamByStripeCustomerId(customerId: string) {
   return result.length > 0 ? result[0] : null;
 }
 
+export async function getUserByStripeCustomerId(customerId: string) {
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.stripeCustomerId, customerId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
 export async function updateTeamSubscription(
   teamId: number,
   subscriptionData: {
     stripeSubscriptionId: string | null;
     stripeProductId: string | null;
-    planName: string | null;
+    planName?: string | null;
+    planType?: string | null;
     subscriptionStatus: string;
   }
 ) {
@@ -62,6 +73,25 @@ export async function updateTeamSubscription(
       updatedAt: new Date()
     })
     .where(eq(teams.id, teamId));
+}
+
+export async function updateUserSubscription(
+  userId: number,
+  subscriptionData: {
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId: string | null;
+    stripeProductId: string | null;
+    planType: string | null;
+    subscriptionStatus: string;
+  }
+) {
+  await db
+    .update(users)
+    .set({
+      ...subscriptionData,
+      updatedAt: new Date()
+    })
+    .where(eq(users.id, userId));
 }
 
 export async function getUserWithTeam(userId: number) {
