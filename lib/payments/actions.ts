@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { createCheckoutSession, createCustomerPortalSession } from './stripe';
-import { withTeam } from '@/lib/auth/middleware';
+import { getUser } from '@/lib/db/queries';
 import { type PlanType } from './plans';
 
 export async function checkoutAction(formData: FormData) {
@@ -18,7 +18,20 @@ export async function checkoutAction(formData: FormData) {
   });
 }
 
-export const customerPortalAction = withTeam(async (_, team) => {
-  const portalSession = await createCustomerPortalSession(team);
+export async function customerPortalAction() {
+  const user = await getUser();
+
+  if (!user) {
+    redirect('/sign-in');
+  }
+
+  // Check if user has a Stripe customer ID (for individual plans)
+  const customerId = user.stripeCustomerId;
+
+  if (!customerId) {
+    redirect('/pricing');
+  }
+
+  const portalSession = await createCustomerPortalSession(customerId);
   redirect(portalSession.url);
-});
+}

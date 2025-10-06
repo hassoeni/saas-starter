@@ -64,6 +64,7 @@ async function handleWebhookEvent(event: Stripe.Event) {
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
       const subscription = event.data.object as Stripe.Subscription;
+      console.log(`🔄 Processing ${event.type} for subscription ${subscription.id}`);
       await handleSubscriptionChange(subscription);
       break;
 
@@ -121,8 +122,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const customerId = session.customer as string;
   const userId = session.client_reference_id;
 
+  console.log('🎫 Checkout completed:', {
+    sessionId: session.id,
+    customerId,
+    userId,
+    subscriptionId: session.subscription
+  });
+
   if (!userId) {
-    console.error('No client_reference_id in checkout session');
+    console.error('❌ No client_reference_id in checkout session');
     return;
   }
 
@@ -137,7 +145,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     subscriptionStatus: 'incomplete'
   });
 
-  console.log(`Linked Stripe customer ${customerId} to user ${userId}`);
+  console.log(`✅ Linked Stripe customer ${customerId} to user ${userId}`);
 }
 
 async function handleTrialWillEnd(subscription: Stripe.Subscription) {

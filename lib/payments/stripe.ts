@@ -24,7 +24,7 @@ export async function createCheckoutSession({
   const user = await getUser();
 
   if (!user) {
-    redirect(`/sign-up?redirect=checkout&planType=${planType}`);
+    redirect(`/sign-up?redirect=checkout&planType=${planType}&priceId=${priceId}&quantity=${quantity}`);
   }
 
   const plan = getPlan(planType);
@@ -85,8 +85,12 @@ export async function createCheckoutSession({
   redirect(session.url!);
 }
 
-export async function createCustomerPortalSession(team: Team) {
-  if (!team.stripeCustomerId) {
+export async function createCustomerPortalSession(customerIdOrTeam: string | Team) {
+  const customerId = typeof customerIdOrTeam === 'string'
+    ? customerIdOrTeam
+    : customerIdOrTeam.stripeCustomerId;
+
+  if (!customerId) {
     redirect('/pricing');
   }
 
@@ -102,34 +106,30 @@ export async function createCustomerPortalSession(team: Team) {
         active: true,
         type: 'recurring'
       });
+
+      // Filter out metered prices (usage-based billing) as they're not supported in customer portal
+      const nonMeteredPrices = prices.data.filter(
+        (price) => price.recurring?.usage_type !== 'metered'
+      );
+
       return {
         product: product.id,
-        prices: prices.data.map((price) => price.id)
+        prices: nonMeteredPrices.map((price) => price.id)
       };
     })
   );
 
-  // Filter out products with no prices
+  // Filter out products with no valid prices
   const validProductConfigs = productConfigs.filter(
     (config) => config.prices.length > 0
   );
 
-  if (validProductConfigs.length === 0) {
-    throw new Error('No active products with prices found');
-  }
-
-  // Always create a new configuration to ensure all products are included
-  const configuration = await stripe.billingPortal.configurations.create({
+  // Create portal configuration
+  const configOptions: any = {
     business_profile: {
       headline: 'Manage your subscription'
     },
     features: {
-      subscription_update: {
-        enabled: true,
-        default_allowed_updates: ['price', 'quantity', 'promotion_code'],
-        proration_behavior: 'create_prorations',
-        products: validProductConfigs
-      },
       subscription_cancel: {
         enabled: true,
         mode: 'at_period_end',
@@ -146,12 +146,27 @@ export async function createCustomerPortalSession(team: Team) {
       },
       payment_method_update: {
         enabled: true
+      },
+      invoice_history: {
+        enabled: true
       }
     }
-  });
+  };
+
+  // Only enable subscription update if there are valid products to switch to
+  if (validProductConfigs.length > 0) {
+    configOptions.features.subscription_update = {
+      enabled: true,
+      default_allowed_updates: ['price', 'quantity', 'promotion_code'],
+      proration_behavior: 'create_prorations',
+      products: validProductConfigs
+    };
+  }
+
+  const configuration = await stripe.billingPortal.configurations.create(configOptions);
 
   return stripe.billingPortal.sessions.create({
-    customer: team.stripeCustomerId,
+    customer: customerId,
     return_url: `${process.env.BASE_URL}/dashboard`,
     configuration: configuration.id
   });
@@ -308,7 +323,7 @@ export async function getStripeProducts() {
     active: true,
     expand: ['data.default_price']
   });
-  console.log(Object(products.data));
+  // console.log(Object(products.data));
 
   return products.data.map((product) => ({
     id: product.id,

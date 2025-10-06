@@ -8,7 +8,13 @@
       "Bash(cat:*)",
       "Bash(psql:*)",
       "WebSearch",
-      "WebFetch(domain:docs.stripe.com)"
+      "WebFetch(domain:docs.stripe.com)",
+      "Bash(npx tsx:*)",
+      "Bash(stripe webhooks list:*)",
+      "Bash(stripe webhook-endpoints list:*)",
+      "Bash(stripe webhook_endpoints list:*)",
+      "Bash(stripe listen:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

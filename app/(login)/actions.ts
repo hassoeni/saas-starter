@@ -93,8 +93,19 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
+    const planType = formData.get('planType') as string;
     const priceId = formData.get('priceId') as string;
-    return createCheckoutSession({ team: foundTeam, priceId });
+    const quantity = formData.get('quantity') as string;
+
+    if (!planType) {
+      return { error: 'Invalid plan type', email, password };
+    }
+
+    return createCheckoutSession({
+      planType: planType as any,
+      priceId,
+      quantity: quantity ? parseInt(quantity) : 1
+    });
   }
 
   redirect('/dashboard');
@@ -214,8 +225,19 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
+    const planType = formData.get('planType') as string;
     const priceId = formData.get('priceId') as string;
-    return createCheckoutSession({ team: createdTeam, priceId });
+    const quantity = formData.get('quantity') as string;
+
+    if (!planType) {
+      return { error: 'Invalid plan type', email, password };
+    }
+
+    return createCheckoutSession({
+      planType: planType as any,
+      priceId,
+      quantity: quantity ? parseInt(quantity) : 1
+    });
   }
 
   redirect('/dashboard');
@@ -404,6 +426,41 @@ export const inviteTeamMember = validatedActionWithUser(
 
     if (!userWithTeam?.teamId) {
       return { error: 'User is not part of a team' };
+    }
+
+    // Check seat limit for team subscriptions
+    if (userWithTeam.team?.stripeSubscriptionId) {
+      const stripe = (await import('@/lib/payments/stripe')).stripe;
+      const subscription = await stripe.subscriptions.retrieve(
+        userWithTeam.team.stripeSubscriptionId
+      );
+
+      const purchasedSeats = subscription.items.data[0]?.quantity || 1;
+
+      // Count current team members
+      const currentMembers = await db
+        .select()
+        .from(teamMembers)
+        .where(eq(teamMembers.teamId, userWithTeam.teamId));
+
+      // Count pending invitations
+      const pendingInvitations = await db
+        .select()
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.teamId, userWithTeam.teamId),
+            eq(invitations.status, 'pending')
+          )
+        );
+
+      const totalSeatsUsed = currentMembers.length + pendingInvitations.length;
+
+      if (totalSeatsUsed >= purchasedSeats) {
+        return {
+          error: `You've reached your seat limit (${purchasedSeats} seats). Please upgrade your subscription to add more members.`
+        };
+      }
     }
 
     const existingMember = await db

@@ -47,8 +47,8 @@ export default function PricingPage() {
 
   // Match your existing Stripe products
   const payAsYouGo = getProductPrice('Transformertokens');
-  const proUnlimited = getProductPrice('Plus');
-  const team = getProductPrice('Team'); // You'll need to create this
+  const proUnlimited = getProductPrice('Pro Unlimited');
+  const team = getProductPrice('Team');
   const enterprise = getProductPrice('Enterprise');
 
   return (
