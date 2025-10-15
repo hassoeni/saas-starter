@@ -1,0 +1,44 @@
+name: Template Configuration Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check template.config.json exists
+        run: |
+          if [ ! -f template.config.json ]; then
+            echo "⚠️  No template.config.json found. Run 'npm run template:init' to configure."
+            exit 0
+          fi
+
+      - name: Validate configuration schema
+        run: |
+          npx ajv-cli validate -s lib/template/config.schema.json -d template.config.json
+
+      - name: Check TypeScript compilation
+        run: npx tsc --noEmit
+
+      - name: Build check
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}

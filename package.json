@@ -8,7 +8,9 @@
     "db:seed": "npx tsx lib/db/seed.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "template:init": "npx tsx lib/template/init.ts",
+    "template:reset": "rm -f template.config.json .env && npm run template:init"
   },
   "dependencies": {
     "@tailwindcss/postcss": "4.1.7",

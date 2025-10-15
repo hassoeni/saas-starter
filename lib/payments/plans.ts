@@ -2,8 +2,10 @@
  * Stripe Plans Configuration
  *
  * This file contains all plan definitions for the application.
- * Update STRIPE_PRICE_IDS with your actual Stripe price IDs from the dashboard.
+ * Plans are automatically configured based on template.config.json
  */
+
+import { loadConfig } from '../template/config';
 
 export type PlanType = 'pay_as_you_go' | 'pro_unlimited' | 'team' | 'enterprise';
 
@@ -25,18 +27,35 @@ export interface PlanConfig {
 }
 
 /**
- * IMPORTANT: Replace these with your actual Stripe Price IDs
- * Get these from: https://dashboard.stripe.com/test/prices
+ * Load Stripe Price IDs from template config or env vars
+ */
+async function loadStripePriceIds() {
+  try {
+    const config = await loadConfig();
+    return {
+      PAY_AS_YOU_GO: config.stripe.products.pay_as_you_go?.priceId || process.env.STRIPE_PRICE_PAY_AS_YOU_GO || 'price_pay_as_you_go_REPLACE_ME',
+      PRO_UNLIMITED: config.stripe.products.pro_unlimited?.priceId || process.env.STRIPE_PRICE_PRO_UNLIMITED || 'price_pro_unlimited_REPLACE_ME',
+      TEAM: config.stripe.products.team?.priceId || process.env.STRIPE_PRICE_TEAM || 'price_team_REPLACE_ME',
+      ENTERPRISE: config.stripe.products.enterprise?.priceId || process.env.STRIPE_PRICE_ENTERPRISE || 'price_enterprise_REPLACE_ME',
+    };
+  } catch {
+    // Fallback to env vars
+    return {
+      PAY_AS_YOU_GO: process.env.STRIPE_PRICE_PAY_AS_YOU_GO || 'price_pay_as_you_go_REPLACE_ME',
+      PRO_UNLIMITED: process.env.STRIPE_PRICE_PRO_UNLIMITED || 'price_pro_unlimited_REPLACE_ME',
+      TEAM: process.env.STRIPE_PRICE_TEAM || 'price_team_REPLACE_ME',
+      ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE || 'price_enterprise_REPLACE_ME',
+    };
+  }
+}
+
+/**
+ * Stripe Price IDs (sync version for immediate use)
  */
 export const STRIPE_PRICE_IDS = {
-  // Individual Plans
   PAY_AS_YOU_GO: process.env.STRIPE_PRICE_PAY_AS_YOU_GO || 'price_pay_as_you_go_REPLACE_ME',
   PRO_UNLIMITED: process.env.STRIPE_PRICE_PRO_UNLIMITED || 'price_pro_unlimited_REPLACE_ME',
-
-  // Team Plans
   TEAM: process.env.STRIPE_PRICE_TEAM || 'price_team_REPLACE_ME',
-
-  // Enterprise (handled via custom invoices)
   ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE || 'price_enterprise_REPLACE_ME',
 } as const;
 
@@ -150,21 +169,56 @@ export function isMeteredPlan(planId: PlanType | null): boolean {
 
 /**
  * Get all plans for display on pricing page
+ * Filters based on template configuration
  */
-export function getAllPlans(): PlanConfig[] {
-  return Object.values(PLANS);
+export async function getAllPlans(): Promise<PlanConfig[]> {
+  try {
+    const config = await loadConfig();
+    const enabledPlanIds = [...config.plans.individual, ...config.plans.team];
+    return Object.values(PLANS).filter(plan => enabledPlanIds.includes(plan.id));
+  } catch {
+    // Fallback to all plans if no config
+    return Object.values(PLANS);
+  }
 }
 
 /**
  * Get individual plans (non-team, non-enterprise)
+ * Filters based on template configuration
  */
-export function getIndividualPlans(): PlanConfig[] {
-  return [PLANS.pay_as_you_go, PLANS.pro_unlimited];
+export async function getIndividualPlans(): Promise<PlanConfig[]> {
+  try {
+    const config = await loadConfig();
+    return config.plans.individual.map(id => PLANS[id as PlanType]).filter(Boolean);
+  } catch {
+    return [PLANS.pay_as_you_go, PLANS.pro_unlimited];
+  }
 }
 
 /**
  * Get team plans
+ * Filters based on template configuration
  */
-export function getTeamPlans(): PlanConfig[] {
+export async function getTeamPlans(): Promise<PlanConfig[]> {
+  try {
+    const config = await loadConfig();
+    return config.plans.team.map(id => PLANS[id as PlanType]).filter(Boolean);
+  } catch {
+    return [PLANS.team, PLANS.enterprise];
+  }
+}
+
+/**
+ * Sync versions (for immediate use, returns all plans)
+ */
+export function getAllPlansSync(): PlanConfig[] {
+  return Object.values(PLANS);
+}
+
+export function getIndividualPlansSync(): PlanConfig[] {
+  return [PLANS.pay_as_you_go, PLANS.pro_unlimited];
+}
+
+export function getTeamPlansSync(): PlanConfig[] {
   return [PLANS.team, PLANS.enterprise];
 }

@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SaaS Template Configuration",
+  "type": "object",
+  "required": ["version", "subscriptionModel", "features"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Template configuration version"
+    },
+    "subscriptionModel": {
+      "type": "string",
+      "enum": ["token-based", "recurring", "hybrid"],
+      "description": "Primary subscription model: token-based (usage), recurring (monthly/yearly), or hybrid (both)"
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "tokenUsage": {
+          "type": "boolean",
+          "description": "Enable token-based usage tracking"
+        },
+        "recurringSubscriptions": {
+          "type": "boolean",
+          "description": "Enable recurring subscription plans"
+        },
+        "teamPlans": {
+          "type": "boolean",
+          "description": "Enable team/organization plans"
+        },
+        "usageAlerts": {
+          "type": "boolean",
+          "description": "Enable usage alert system"
+        },
+        "meteredBilling": {
+          "type": "boolean",
+          "description": "Enable Stripe metered billing"
+        },
+        "enterprisePlans": {
+          "type": "boolean",
+          "description": "Enable enterprise tier plans"
+        }
+      }
+    },
+    "plans": {
+      "type": "object",
+      "properties": {
+        "individual": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of individual plan IDs to enable"
+        },
+        "team": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of team plan IDs to enable"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["local", "supabase", "vercel", "custom"],
+          "description": "Database provider"
+        },
+        "url": {
+          "type": "string",
+          "description": "Database connection URL"
+        }
+      }
+    },
+    "stripe": {
+      "type": "object",
+      "properties": {
+        "autoCreateProducts": {
+          "type": "boolean",
+          "description": "Automatically create Stripe products during setup"
+        },
+        "products": {
+          "type": "object",
+          "description": "Stripe product and price IDs (populated during setup)"
+        }
+      }
+    }
+  }
+}

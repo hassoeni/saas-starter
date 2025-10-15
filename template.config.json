@@ -1,0 +1,25 @@
+{
+  "$schema": "./lib/template/config.schema.json",
+  "version": "1.0.0",
+  "subscriptionModel": "hybrid",
+  "features": {
+    "tokenUsage": true,
+    "recurringSubscriptions": true,
+    "teamPlans": true,
+    "usageAlerts": true,
+    "meteredBilling": true,
+    "enterprisePlans": true
+  },
+  "plans": {
+    "individual": ["pay_as_you_go", "pro_unlimited"],
+    "team": ["team", "enterprise"]
+  },
+  "database": {
+    "provider": "supabase",
+    "url": ""
+  },
+  "stripe": {
+    "autoCreateProducts": true,
+    "products": {}
+  }
+}
