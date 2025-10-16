@@ -283,8 +283,16 @@ ALERT_EMAIL=billing@yourdomain.com
 async function runMigrations() {
   printSection('Step 6: Running Database Migrations');
 
-  console.log('Generating migrations...');
-  await execAsync('npm run db:generate');
+  // Check if migrations already exist
+  const migrationsPath = path.join(process.cwd(), 'lib/db/migrations');
+  const migrationsExist = await fileExists(migrationsPath);
+
+  if (!migrationsExist) {
+    console.log('Generating migrations...');
+    await execAsync('npm run db:generate');
+  } else {
+    console.log('ℹ️  Migrations already exist, skipping generation...');
+  }
 
   console.log('Running migrations...');
   await execAsync('npm run db:migrate');

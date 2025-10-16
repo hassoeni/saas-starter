@@ -108,10 +108,10 @@ async function createStripePrice(
 
   if (definition.recurring.usageType === 'metered') {
     // Metered billing (usage-based)
-    command += ` --billing-scheme per_unit --recurring[interval]=month --recurring[usage_type]=metered`;
+    command += ` --billing-scheme per_unit -d "recurring[interval]=month" -d "recurring[usage_type]=metered"`;
   } else {
     // Recurring subscription
-    command += ` --unit-amount ${definition.price} --recurring[interval]=${definition.recurring.interval}`;
+    command += ` --unit-amount ${definition.price} -d "recurring[interval]=${definition.recurring.interval}"`;
   }
 
   const { stdout } = await execAsync(command);

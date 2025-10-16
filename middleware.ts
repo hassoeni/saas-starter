@@ -32,7 +32,8 @@ export async function middleware(request: NextRequest) {
         expires: expiresInOneDay
       });
     } catch (error) {
-      console.error('Error updating session:', error);
+      // Session verification failed (likely due to AUTH_SECRET change or expired token)
+      // Clear the invalid session cookie and redirect to sign-in if needed
       res.cookies.delete('session');
       if (isProtectedRoute) {
         return NextResponse.redirect(new URL('/sign-in', request.url));
