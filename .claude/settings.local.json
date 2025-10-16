@@ -14,7 +14,14 @@
       "Bash(stripe webhook-endpoints list:*)",
       "Bash(stripe webhook_endpoints list:*)",
       "Bash(stripe listen:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm install)",
+      "Bash(stripe products list:*)",
+      "Bash(stripe prices list:*)",
+      "Bash(stripe products delete:*)",
+      "Bash(stripe products update:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
